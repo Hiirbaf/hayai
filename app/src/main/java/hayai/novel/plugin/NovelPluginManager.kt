@@ -34,6 +34,13 @@ class NovelPluginManager(
     private val networkHelper: NetworkHelper,
 ) {
     private val scope = CoroutineScope(Job() + Dispatchers.IO)
+    
+    // Obtener en el hilo principal durante construcción, antes del init block
+    private val userAgent: String = try {
+        android.webkit.WebSettings.getDefaultUserAgent(context)
+    } catch (_: Exception) {
+        "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+    }
     private val json = Json { ignoreUnknownKeys = true }
     private val bridge = NovelJsBridgeImpl(context)
     private val pluginLoader = JsPluginLoader(context)
@@ -57,11 +64,9 @@ class NovelPluginManager(
     private var installedPluginsLoaded = false
 
     init {
-        // Load installed plugins on startup
         scope.launch {
             ensureInstalledPluginsLoaded()
         }
-        // Watch repos for changes
         scope.launch {
             repoRepository.subscribeAll().collectLatest {
                 refreshAvailablePlugins()
@@ -302,13 +307,7 @@ class NovelPluginManager(
         return if (pluginDir.exists()) pluginDir.lastModified() else 0L
     }
 
-    private fun getUserAgent(): String {
-        return try {
-            android.webkit.WebSettings.getDefaultUserAgent(context)
-        } catch (_: Exception) {
-            "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-        }
-    }
+    private fun getUserAgent(): String = userAgent
 
     /**
      * Get language code from LNReader's plugin directory name or metadata.
